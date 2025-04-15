@@ -1,3 +1,6 @@
 renders/
 *.png
 std/
+png_compare
+raytrace_mpi
+raytrace_seq
