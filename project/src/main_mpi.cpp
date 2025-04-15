@@ -66,6 +66,8 @@ int main( int argc, char* argv[] )
         slaveMain( &data );
     }
 
+    std::cout << "Process " << data.mpi_rank << " finished." << std::endl;
+
     //Clean up the scene and other data.
     shutdown(&data);
     //Finalize the MPI environment.

@@ -2,11 +2,14 @@
 
 #include <iostream>
 #include <mpi.h>
+#include <unistd.h>
 #include "RayTrace.h"
 #include "slave.h"
 
 void slaveMain(ConfigData* data)
 {
+    //Print PID (for debugging)
+    std::cout << "Slave " << data->mpi_rank << " PID: " << getpid() << std::endl;
     //Depending on the partitioning scheme, different things will happen.
     //You should have a different function for each of the required 
     //schemes that returns some values that you need to handle.
@@ -31,31 +34,33 @@ void slaveMain(ConfigData* data)
 void slaveStaticStripsVertical(ConfigData* data)
 {
     //Receive the data from the master process
-    ConfigData stripData;
-    MPI_Recv(&stripData, sizeof(ConfigData), MPI_BYTE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    int width = 0;
+    int height = 0;
+    //Receive the width and height of the strip from the master process
+    MPI_Recv(&width, sizeof(int), MPI_BYTE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    MPI_Recv(&height, sizeof(int), MPI_BYTE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     //Allocate space for the image on the slave
-    float pixels[3 * stripData.width * stripData.height];
+    float pixels[3 * width * height];
     //Receive the pixels from the master process
-    MPI_Recv(pixels, 3 * stripData.width * stripData.height, MPI_FLOAT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    std::cout << "Slave " << data->mpi_rank << " received strip of size " << stripData.width << " x " << stripData.height << std::endl;
+    MPI_Recv(pixels, 3 * width * height, MPI_FLOAT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    std::cout << "Slave " << data->mpi_rank << " received strip of size " << width << " x " << height << std::endl;
     //Render the scene
-    for( int i = 0; i < stripData.height; ++i )
+    for( int i = 0; i < height; ++i )
     {
-        //std::cout << "Slave " << data->mpi_rank << " rendering row " << i << std::endl;
-        for( int j = 0; j < stripData.width; ++j )
+        for( int j = 0; j < width; ++j )
         {
             int row = i;
             int column = j;
 
             //Calculate the index into the array.
-            int baseIndex = 3 * ( row * stripData.width + column );
+            int baseIndex = 3 * ( row * width + column );
 
             //Call the function to shade the pixel.
             shadePixel(&(pixels[baseIndex]),row,j,data);
         }
     }
     //Send the pixels back to the master process
-    MPI_Send(pixels, 3 * stripData.width * stripData.height, MPI_FLOAT, 0, 0, MPI_COMM_WORLD);
+    MPI_Send(pixels, 3 * width * height, MPI_FLOAT, 0, 0, MPI_COMM_WORLD);
     std::cout << "Slave " << data->mpi_rank << " sent strip back to master" << std::endl;
 }
 
@@ -80,12 +85,17 @@ void slaveStaticBlocks(ConfigData* data)
 
             //Calculate the index into the array.
             int baseIndex = 3 * ( row * blockData.width + column );
-
+            if(j > blockData.width - 2)
+            {
+                std::cout << "Slave " << data->mpi_rank << " rendering row " << i << " column " << j << std::endl;
+                std::cout << "Base index: " << baseIndex << std::endl;
+                std::cout << "Width: " << blockData.width << std::endl;
+            }
             //Call the function to shade the pixel.
-            shadePixel(&(pixels[baseIndex]),row,j,data);
+            shadePixel(&(pixels[baseIndex]),row,column,data);
         }
     }
     //Send the pixels back to the master process
-    MPI_Send(pixels, 3 * blockData.width * blockData.height, MPI_FLOAT, 0, 0, MPI_COMM_WORLD);
+    MPI_Send(&pixels, 3 * blockData.width * blockData.height, MPI_FLOAT, 0, 0, MPI_COMM_WORLD);
     std::cout << "Slave " << data->mpi_rank << " sent block back to master" << std::endl;
 }

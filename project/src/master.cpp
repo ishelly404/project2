@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <mpi.h>
+#include <unistd.h>
 
 #include "RayTrace.h"
 #include "master.h"
@@ -19,6 +20,9 @@ void masterMain(ConfigData* data)
     //for the given function to execute based on partitioning
     //type.
     double renderTime = 0.0, startTime, stopTime;
+
+    //Print PID (for debugging)
+    std::cout << "Master PID: " << getpid() << std::endl;
 
 	//Add the required partitioning methods here in the case statement.
 	//You do not need to handle all cases; the default will catch any
@@ -167,6 +171,7 @@ void masterStaticBlocks(ConfigData* data, float* pixels)
     //Receive the data from each process
     for (int i = 1; i < data->mpi_procs; i++)
     {
+        std::cout << "Waiting for strip " << i << std::endl;
         //Receive the pixels from each process
         float blockPixels[3 * blockData[i].width * blockData[i].height];
         MPI_Recv(blockPixels, 3 * blockData[i].width * blockData[i].height, MPI_FLOAT, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
@@ -211,38 +216,36 @@ void masterStaticCyclesVertical(ConfigData* data, float* pixels)
     //Need to handle remainder in case of odd sized widths or processor numbers
     int pixelsPerStripRemainder = data->width % data->mpi_procs;
 
+    int width[data->mpi_procs];
+    int height[data->mpi_procs];
+
     //Distribute the parameters to each process
-    ConfigData* stripData = new ConfigData[data->mpi_procs];
     for (int i = 0; i < data->mpi_procs; i++)
     {
-        stripData[i] = *data;
-        stripData[i].width = pixelsPerStrip;
-        stripData[i].height = data->height;
-        stripData[i].partitioningMode = PART_MODE_STATIC_CYCLES_VERTICAL;
-        stripData[i].cycleSize = data->cycleSize;
-        stripData[i].dynamicBlockWidth = data->dynamicBlockWidth;
-        stripData[i].dynamicBlockHeight = data->dynamicBlockHeight;
-
-        std::cout << "Process " << i << " will handle a strip of size " << stripData[i].width << " x " << stripData[i].height << std::endl;
+        width[i] = pixelsPerStrip;
+        height[i] = data->height;
+        std::cout << "Process " << i << " will handle a strip of size " << width[i] << " x " << height[i] << std::endl;
 
         //If there is a remainder, add the remainder to the width of the last process
         if (i == data->mpi_procs - 1 && pixelsPerStripRemainder > 0)
         {
-            stripData[i].width += pixelsPerStripRemainder;
+            width[i] += pixelsPerStripRemainder;
         }
     }
     //Send the data to each process
     for (int i = 1; i < data->mpi_procs; i++)
     {
-        MPI_Send(&stripData[i], sizeof(ConfigData), MPI_BYTE, i, 0, MPI_COMM_WORLD);
-        MPI_Send(pixels, 3 * stripData[i].width * stripData[i].height, MPI_FLOAT, i, 0, MPI_COMM_WORLD);
+        MPI_Send(&width[i], sizeof(int), MPI_BYTE, i, 0, MPI_COMM_WORLD);
+        MPI_Send(&height[i], sizeof(int), MPI_BYTE, i, 0, MPI_COMM_WORLD);
+        int pixels_size = 3 * (width[i] * height[i]);
+        MPI_Send(pixels, pixels_size, MPI_FLOAT, i, 0, MPI_COMM_WORLD);
     }
 
     //The master process will handle the first strip
     //Render the scene.
-    for( int i = 0; i < stripData[0].height; i++ )
+    for( int i = 0; i < height[0]; i++ )
     {
-        for( int j = 0; j < stripData[0].width; j++ )
+        for( int j = 0; j < width[0]; j++ )
         {
             int row = i;
             int column = j;
@@ -259,16 +262,18 @@ void masterStaticCyclesVertical(ConfigData* data, float* pixels)
     for (int i = 1; i < data->mpi_procs; i++)
     {
         //Receive the pixels from each process
-        float stripPixels[3 * stripData[i].width * stripData[i].height];
-        MPI_Recv(stripPixels, 3 * stripData[i].width * stripData[i].height, MPI_FLOAT, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        float stripPixels[3 * width[i] * height[i]];
+        MPI_Recv(stripPixels, 3 * width[i] * height[i], MPI_FLOAT, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         std::cout << "Received strip " << i << std::endl;
 
         //Consolidate the strips into one image, stored in the master process
-        for (int row = 0; row < stripData[i].height; row++)
+        for (int row = 0; row < height[i]; row++)
         {   
-            for (int column = (pixelsPerStrip*(i+1)); column < stripData[i].width; column++)
+            std::cout << "Combining from " << (width[i-1]*i) << " to " << (width[i-1] + width[i]) << std::endl;
+            for (int column = (width[i-1]*i); column < (width[i-1] + width[i]); column++)
             {
-                int baseIndex = 3 * (row * stripData->width + column);
+                std::cout << "Row: " << row << " Column: " << column << std::endl;
+                int baseIndex = 3 * (row * (width[i]) + column);
                 pixels[baseIndex] = stripPixels[baseIndex];
             }
         }
