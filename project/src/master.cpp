@@ -252,6 +252,7 @@ void masterStaticCyclesVertical(ConfigData* data, float* pixels)
 
             //Calculate the index into the array.
             int baseIndex = 3 * ( row * data->width + column );
+            std::cout << "baseIndex: " << baseIndex << std::endl; 
 
             //Call the function to shade the pixel.
             shadePixel(&(pixels[baseIndex]),row,j,data);
@@ -267,14 +268,16 @@ void masterStaticCyclesVertical(ConfigData* data, float* pixels)
         std::cout << "Received strip " << i << std::endl;
 
         //Consolidate the strips into one image, stored in the master process
-        for (int row = 0; row < height[i]; row++)
+        for (int row = 0; row <= height[i]; row++)
         {   
-            std::cout << "Combining from " << (width[i-1]*i) << " to " << (width[i-1] + width[i]) << std::endl;
+            //std::cout << "Combining from " << (width[i-1]*i) << " to " << (width[i-1] + width[i]) << std::endl;
             for (int column = (width[i-1]*i); column < (width[i-1] + width[i]); column++)
             {
-                std::cout << "Row: " << row << " Column: " << column << std::endl;
-                int baseIndex = 3 * (row * (width[i]) + column);
-                pixels[baseIndex] = stripPixels[baseIndex];
+                //std::cout << "Row: " << row << " Column: " << column << std::endl;
+                int stripBaseIndex = 3 * (row * (width[i]) + column);
+                int pixelsBaseIndex = 3 * (row * data->width + column);
+                pixels[pixelsBaseIndex] = stripPixels[stripBaseIndex];
+                std::cout << "stripBaseIndex: " << stripBaseIndex << " pixelsBaseIndex: " << pixelsBaseIndex << std::endl;
             }
         }
     }
