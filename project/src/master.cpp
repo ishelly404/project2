@@ -268,11 +268,11 @@ void masterStaticCyclesVertical(ConfigData* data, float* pixels)
 
         std::cout << "width[i]: " << width[i] << std::endl;
         std::cout << "data->width: " << data->width << std::endl;
-        std::cout << "Strip range " << (width[i-1]*i) << " to " << (width[i-1] + width[i]) << std::endl;
+        std::cout << "Strip range " << (width[i-1]*i) << " to " << ((width[i-1]*i) + width[i]) << std::endl;
         //Consolidate the strips into one image, stored in the master process
-        for(int column = (width[i-1]*i); column < (width[i-1] + width[i]); column++)
+        for(int column = (width[i-1]*i); column < ((width[i-1]*i) + width[i]); column++)
         {
-            for (int row = 0; row < height[i]; row++)
+            for (int row = 0; row < data->height; row++)
             {
                 for(int pix = 0; pix < 3; pix++)
                 {
@@ -280,8 +280,7 @@ void masterStaticCyclesVertical(ConfigData* data, float* pixels)
                     int baseIndex = 3 * (row * data->width + column) + pix;
                     int stripBaseIndex = 3 * (row * width[i] + column) + pix;
                     pixels[baseIndex] = stripPixels[stripBaseIndex];                   
-                    std::cout << "stripBaseIndex: " << stripBaseIndex << " pixelsBaseIndex: " << baseIndex << std::endl;
- 
+                    //std::cout << "stripBaseIndex: " << stripBaseIndex << " pixelsBaseIndex: " << baseIndex << std::endl;
                 }
             }
         }
