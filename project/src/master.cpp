@@ -272,7 +272,7 @@ void masterStaticCyclesVertical(ConfigData* data, float* pixels)
         //Consolidate the strips into one image, stored in the master process
         for(int column = (width[i-1]*i); column < ((width[i-1]*i) + width[i]); column++)
         {
-            for (int row = 0; row < data->height; row++)
+            for (int row = 0; row <= data->height; row++)
             {
                 for(int pix = 0; pix < 3; pix++)
                 {

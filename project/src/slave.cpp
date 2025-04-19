@@ -44,6 +44,8 @@ void slaveStaticStripsVertical(ConfigData* data)
     //Receive the pixels from the master process
     MPI_Recv(pixels, 3 * width * height, MPI_FLOAT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     std::cout << "Slave " << data->mpi_rank << " received strip of size " << width << " x " << height << std::endl;
+    std::cout << "Width: " << width << std::endl;
+    std::cout << "Height: " << height << std::endl;
     //Render the scene
     for( int i = 0; i < height; ++i )
     {
