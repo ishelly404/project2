@@ -39,7 +39,11 @@ void slaveStaticStripsVertical(ConfigData* data)
     //Receive the width and height of the strip from the master process
     MPI_Recv(&width, sizeof(int), MPI_BYTE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     MPI_Recv(&height, sizeof(int), MPI_BYTE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    int offset = 0;
+    MPI_Recv(&offset, sizeof(int), MPI_BYTE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    std::cout << "Slave " << data->mpi_rank << " offset " << offset << std::endl;
     //Allocate space for the image on the slave
+    //float pixels[data->width * data->height];
     float pixels[3 * width * height];
     //Receive the pixels from the master process
     MPI_Recv(pixels, 3 * width * height, MPI_FLOAT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
@@ -58,7 +62,7 @@ void slaveStaticStripsVertical(ConfigData* data)
             int baseIndex = 3 * ( row * width + column );
 
             //Call the function to shade the pixel.
-            shadePixel(&(pixels[baseIndex]),row,j,data);
+            shadePixel(&(pixels[baseIndex]),row,column + offset,data);
         }
     }
     //Send the pixels back to the master process

@@ -237,6 +237,8 @@ void masterStaticCyclesVertical(ConfigData* data, float* pixels)
     {
         MPI_Send(&width[i], sizeof(int), MPI_BYTE, i, 0, MPI_COMM_WORLD);
         MPI_Send(&height[i], sizeof(int), MPI_BYTE, i, 0, MPI_COMM_WORLD);
+        int offset = (width[i-1] * i);
+        MPI_Send(&offset, sizeof(int), MPI_BYTE, i, 0, MPI_COMM_WORLD);
         int pixels_size = 3 * (width[i] * height[i]);
         MPI_Send(pixels, pixels_size, MPI_FLOAT, i, 0, MPI_COMM_WORLD);
     }
