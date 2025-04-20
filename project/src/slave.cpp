@@ -44,27 +44,35 @@ void slaveStaticStripsVertical(ConfigData* data)
     std::cout << "Slave " << data->mpi_rank << " offset " << offset << std::endl;
     //Allocate space for the image on the slave
     //float pixels[data->width * data->height];
-    float pixels[3 * width * height];
+    float* pixels = new float[3 * width * height];
     //Receive the pixels from the master process
-    MPI_Recv(pixels, 3 * width * height, MPI_FLOAT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    //MPI_Recv(pixels, 3 * width * height, MPI_FLOAT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     std::cout << "Slave " << data->mpi_rank << " received strip of size " << width << " x " << height << std::endl;
     std::cout << "Width: " << width << std::endl;
     std::cout << "Height: " << height << std::endl;
     //Render the scene
-    for( int i = 0; i < height; ++i )
+    for( int row = 0; row < height; row++ )
     {
-        for( int j = 0; j < width; ++j )
+        for( int column = 0; column < width; column++ )
         {
-            int row = i;
-            int column = j;
 
             //Calculate the index into the array.
             int baseIndex = 3 * ( row * width + column );
-
+            if(row > height - 2)
+            {
+                std::cout << "Slave " << data->mpi_rank << " rendering row " << row << " column " << column << std::endl;
+                std::cout << "Base index: " << baseIndex << std::endl;
+                std::cout << "Width: " << width << std::endl;
+            }
             //Call the function to shade the pixel.
             shadePixel(&(pixels[baseIndex]),row,column + offset,data);
         }
     }
+
+    //Send the width and height of the strip back to the master process
+    MPI_Send(&width, sizeof(int), MPI_BYTE, 0, 0, MPI_COMM_WORLD);
+    MPI_Send(&height, sizeof(int), MPI_BYTE, 0, 0, MPI_COMM_WORLD);
+    
     //Send the pixels back to the master process
     MPI_Send(pixels, 3 * width * height, MPI_FLOAT, 0, 0, MPI_COMM_WORLD);
     std::cout << "Slave " << data->mpi_rank << " sent strip back to master" << std::endl;

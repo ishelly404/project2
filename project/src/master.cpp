@@ -232,56 +232,62 @@ void masterStaticCyclesVertical(ConfigData* data, float* pixels)
             width[i] += pixelsPerStripRemainder;
         }
     }
+    std::cout << "Sending data to each process" << std::endl;
     //Send the data to each process
     for (int i = 1; i < data->mpi_procs; i++)
     {
+        std::cout << "Sending data to process " << i << std::endl;
         MPI_Send(&width[i], sizeof(int), MPI_BYTE, i, 0, MPI_COMM_WORLD);
         MPI_Send(&height[i], sizeof(int), MPI_BYTE, i, 0, MPI_COMM_WORLD);
+        std::cout << "Sending offset to process " << i << std::endl;
         int offset = (width[i-1] * i);
         MPI_Send(&offset, sizeof(int), MPI_BYTE, i, 0, MPI_COMM_WORLD);
-        int pixels_size = 3 * (width[i] * height[i]);
+        std::cout << "Sending pixels to process " << i << std::endl;
+        long pixels_size = 3 * (width[i] * height[i]);
+        std::cout << "Pixels size: " << pixels_size << std::endl;
         MPI_Send(pixels, pixels_size, MPI_FLOAT, i, 0, MPI_COMM_WORLD);
     }
-
+    std::cout << "Master beginning to render" << std::endl;
     //The master process will handle the first strip
     //Render the scene.
-    for( int i = 0; i < height[0]; i++ )
+    for( int row = 0; row < height[0]; row++ )
     {
-        for( int j = 0; j < width[0]; j++ )
+        for( int column = 0; column < width[0]; column++ )
         {
-            int row = i;
-            int column = j;
 
             //Calculate the index into the array.
-            int baseIndex = 3 * ( row * data->width + column );
+            int baseIndex = 3 * ( row * width[0] + column );
 
             //Call the function to shade the pixel.
-            shadePixel(&(pixels[baseIndex]),row,j,data);
+            shadePixel(&(pixels[baseIndex]),row,column,data);
         }
     }
 
     //Receive the data from each process
     for (int i = 1; i < data->mpi_procs; i++)
     {
+        //Receive the width and height of the strip
+        int new_width, new_height;
+        MPI_Recv(&new_width, sizeof(int), MPI_BYTE, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(&new_height, sizeof(int), MPI_BYTE, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        width[i] = new_width;
+        height[i] = new_height;
         //Receive the pixels from each process
         float stripPixels[3 * width[i] * height[i]];
         MPI_Recv(stripPixels, 3 * width[i] * height[i], MPI_FLOAT, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        std::cout << "Received strip " << i << std::endl;
 
-        std::cout << "width[i]: " << width[i] << std::endl;
-        std::cout << "data->width: " << data->width << std::endl;
-        std::cout << "Strip range " << (width[i-1]*i) << " to " << ((width[i-1]*i) + width[i]) << std::endl;
         //Consolidate the strips into one image, stored in the master process
         for(int column = (width[i-1]*i); column < ((width[i-1]*i) + width[i]); column++)
         {
-            for (int row = 0; row <= data->height; row++)
+            for (int row = 0; row != (data->height); row++)
             {
                 for(int pix = 0; pix < 3; pix++)
                 {
                     //Calculate the index into the array.
                     int baseIndex = 3 * (row * data->width + column) + pix;
                     int stripBaseIndex = 3 * (row * width[i] + column) + pix;
-                    pixels[baseIndex] = stripPixels[stripBaseIndex];                   
+                    pixels[baseIndex] = stripPixels[stripBaseIndex];
+
                     //std::cout << "stripBaseIndex: " << stripBaseIndex << " pixelsBaseIndex: " << baseIndex << std::endl;
                 }
             }
